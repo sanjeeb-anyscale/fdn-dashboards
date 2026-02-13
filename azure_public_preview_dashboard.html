@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Public Preview Program - Executive Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-card: #f8f9fa;
+            --border: #dee2e6;
+            --text-primary: #1a1a2e;
+            --text-secondary: #495057;
+            --text-muted: #868e96;
+            --blue: #2563eb;
+            --cyan: #0891b2;
+            --green: #059669;
+            --yellow: #d97706;
+            --orange: #ea580c;
+            --red: #dc2626;
+            --purple: #7c3aed;
+            --pink: #db2777;
+            --azure: #0078d4;
+            --azure-light: #0066b8;
+            --p0: #dc2626; --p1: #ea580c; --p2: #d97706; --p3: #6b7280;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: var(--bg-primary); color: var(--text-primary); min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Navigation Bar */
+        .nav-bar {
+            background: #f0f7ff;
+            border-bottom: 1px solid #d6e4f0;
+            padding: 10px 40px;
+            display: flex; align-items: center; gap: 8px;
+            font-size: 13px; color: var(--text-secondary);
+        }
+        .nav-bar a {
+            color: var(--azure-light); text-decoration: none; font-weight: 500;
+            transition: color 0.15s;
+        }
+        .nav-bar a:hover { color: var(--azure); text-decoration: underline; }
+        .nav-bar .sep { color: var(--text-muted); margin: 0 4px; }
+        .nav-bar .current { color: var(--text-primary); font-weight: 600; }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, rgba(0,120,212,0.06) 0%, #ffffff 70%);
+            border-bottom: 1px solid var(--border); padding: 28px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .header-left h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+        .header-left h1 .azure-text { color: var(--azure); }
+        .header-left .subtitle { color: var(--text-secondary); font-size: 14px; margin-top: 6px; }
+        .header-right { display: flex; align-items: center; gap: 14px; }
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+        }
+        .badge-azure { background: #eff6ff; color: var(--azure); border: 1px solid #bfdbfe; }
+        .badge-date { background: #eff6ff; color: var(--blue); border: 1px solid #bfdbfe; }
+        .badge-live { background: #ecfdf5; color: var(--green); border: 1px solid #a7f3d0; }
+        .badge-live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        .dashboard { padding: 28px 40px; max-width: 1600px; margin: 0 auto; }
+
+        /* Executive Summary Table */
+        .exec-summary {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+            padding: 28px; margin-bottom: 28px;
+            border-top: 3px solid var(--azure);
+        }
+        .exec-summary-title {
+            font-size: 18px; font-weight: 700; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .exec-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .exec-table th {
+            text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);
+            border-bottom: 2px solid var(--border); background: rgba(0,0,0,0.03);
+        }
+        .exec-table td {
+            padding: 12px 14px; border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        .exec-table tbody tr:hover td { background: rgba(0,120,212,0.04); }
+        .exec-table .metric-label { color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
+        .exec-table .metric-value { font-weight: 700; font-size: 14px; }
+        .exec-table .metric-detail { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+        .risk-high { color: var(--red); }
+        .risk-medium { color: var(--yellow); }
+        .risk-low { color: var(--green); }
+        .exec-row-highlight { background: rgba(0,120,212,0.05); }
+
+        /* KPI Row */
+        .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 28px; }
+        .kpi-card {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 20px; position: relative; overflow: hidden;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .kpi-card:hover { transform: translateY(-2px); border-color: var(--azure); }
+        .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 8px; }
+        .kpi-value { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+        .kpi-detail { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+        .kpi-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+        .kpi-card.c-azure::after { background: var(--azure); }
+        .kpi-card.c-red::after { background: var(--red); }
+        .kpi-card.c-cyan::after { background: var(--cyan); }
+        .kpi-card.c-green::after { background: var(--green); }
+        .kpi-card.c-yellow::after { background: var(--yellow); }
+
+        /* Layout */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card-title { font-size: 15px; font-weight: 700; }
+        .card-badge { font-size: 11px; padding: 4px 10px; border-radius: 4px; font-weight: 600; }
+        .card-badge-red { background: #fef2f2; color: var(--red); border: 1px solid #fecaca; }
+        .card-badge-blue { background: #eff6ff; color: var(--azure); border: 1px solid #bfdbfe; }
+        .card-badge-green { background: #ecfdf5; color: var(--green); border: 1px solid #a7f3d0; }
+
+        .chart-container { position: relative; height: 260px; }
+
+        /* Workstream cards */
+        .ws-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
+        .ws-card {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+            padding: 18px; transition: border-color 0.2s;
+        }
+        .ws-card:hover { border-color: var(--azure); }
+        .ws-card-title { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .ws-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+        .ws-meta { display: flex; gap: 14px; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+        .ws-meta span { display: flex; align-items: center; gap: 4px; }
+        .ws-tickets { display: flex; flex-wrap: wrap; gap: 4px; }
+        .ws-ticket-tag {
+            font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 600;
+            text-decoration: none; transition: background 0.15s;
+        }
+        .ws-ticket-tag:hover { filter: brightness(0.85); }
+        .ws-ticket-tag.ip { background: rgba(8,145,178,0.12); color: var(--cyan); }
+        .ws-ticket-tag.open { background: rgba(37,99,235,0.12); color: var(--blue); }
+        .ws-ticket-tag.sub { background: rgba(124,58,237,0.12); color: var(--purple); }
+
+        /* Progress Bars */
+        .progress-item { margin-bottom: 14px; }
+        .progress-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
+        .progress-label .name { color: var(--text-primary); font-weight: 500; }
+        .progress-label .value { color: var(--text-secondary); font-weight: 600; }
+        .progress-bar { height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; }
+
+        /* Data Table */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .data-table thead th {
+            text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);
+            border-bottom: 1px solid var(--border); position: sticky; top: 0;
+            background: var(--bg-card); z-index: 1;
+        }
+        .data-table tbody td { padding: 10px 12px; border-bottom: 1px solid #e9ecef; color: var(--text-secondary); }
+        .data-table tbody tr:hover td { background: rgba(0,120,212,0.04); color: var(--text-primary); }
+        .key-link { color: var(--azure); text-decoration: none; font-weight: 600; font-size: 12px; }
+        .key-link:hover { text-decoration: underline; color: #004a82; }
+
+        .priority-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; min-width: 32px;
+        }
+        .priority-P0 { background: #fef2f2; color: var(--p0); border: 1px solid #fecaca; }
+        .priority-P1 { background: #fff7ed; color: var(--p1); border: 1px solid #fed7aa; }
+        .priority-P3 { background: #f3f4f6; color: var(--p3); border: 1px solid #d1d5db; }
+
+        .status-badge { display: inline-flex; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+        .status-open { background: #eff6ff; color: var(--blue); border: 1px solid #bfdbfe; }
+        .status-submitted { background: #f5f3ff; color: var(--purple); border: 1px solid #ddd6fe; }
+        .status-inprogress { background: #ecfeff; color: var(--cyan); border: 1px solid #a5f3fc; }
+        .status-blocked { background: #fef2f2; color: var(--red); border: 1px solid #fecaca; }
+
+        .type-badge {
+            display: inline-flex; padding: 2px 7px; border-radius: 3px; font-size: 10px;
+            font-weight: 600; background: #e9ecef; color: var(--text-secondary);
+        }
+
+        .age-badge { font-weight: 700; font-size: 12px; }
+        .age-fresh { color: var(--green); }
+        .age-mid { color: var(--yellow); }
+        .age-old { color: var(--orange); }
+
+        .section-header {
+            font-size: 18px; font-weight: 700; margin: 8px 0 18px 0; padding-bottom: 8px;
+            border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px;
+        }
+
+        .table-scroll { max-height: 600px; overflow-y: auto; }
+        .table-scroll::-webkit-scrollbar { width: 6px; }
+        .table-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .stacked-bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; margin: 12px 0; }
+        .stacked-segment {
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700; color: white; min-width: 28px;
+        }
+
+        .footer {
+            text-align: center; padding: 24px 40px; color: var(--text-muted);
+            font-size: 12px; border-top: 1px solid var(--border); margin-top: 16px;
+        }
+        .footer a { color: var(--azure); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 1200px) {
+            .kpi-row { grid-template-columns: repeat(3, 1fr); }
+            .ws-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 800px) {
+            .kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .grid-2 { grid-template-columns: 1fr; }
+            .ws-grid { grid-template-columns: 1fr; }
+            .dashboard, .header, .nav-bar { padding-left: 16px; padding-right: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<div class="nav-bar">
+    <a href="fdn_executive_dashboard.html">FDN Executive Dashboard</a>
+    <span class="sep">/</span>
+    <span class="current">Azure Public Preview Program</span>
+    <span style="flex:1;"></span>
+    <a href="https://anyscale1.atlassian.net/jira/plans/232/scenarios/232/timeline?vid=334" target="_blank">Jira Plan 232</a>
+    <span class="sep">|</span>
+    <a href="https://anyscale1.atlassian.net/browse/FDN-2578" target="_blank">FDN-2578</a>
+</div>
+
+<!-- Header -->
+<div class="header">
+    <div class="header-left">
+        <h1><span class="azure-text">Azure</span> Public Preview Program</h1>
+        <div class="subtitle">Initiative FDN-2578 &mdash; Foundations Team &mdash; Anyscale</div>
+    </div>
+    <div class="header-right">
+        <span class="badge badge-live">Live Data</span>
+        <span class="badge badge-azure">FDN-AZURE</span>
+        <span class="badge badge-date">February 10, 2026</span>
+    </div>
+</div>
+
+<div class="dashboard">
+
+    <!-- Executive Summary -->
+    <div class="exec-summary">
+        <div class="exec-summary-title">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>
+            Executive Summary
+        </div>
+        <table class="exec-table">
+            <thead>
+                <tr>
+                    <th style="width:22%">Metric</th>
+                    <th style="width:18%">Value</th>
+                    <th style="width:35%">Detail</th>
+                    <th style="width:25%">Risk / Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="exec-row-highlight">
+                    <td class="metric-label">Initiative</td>
+                    <td class="metric-value"><a href="https://anyscale1.atlassian.net/browse/FDN-2578" class="key-link">FDN-2578</a></td>
+                    <td>Azure Public Preview Program<div class="metric-detail">DRI: Sanjeeb Bhanja</div></td>
+                    <td><span class="status-badge status-open">Open</span></td>
+                </tr>
+                <tr>
+                    <td class="metric-label">Total Open Tickets</td>
+                    <td class="metric-value">24</td>
+                    <td>8 Epics, 9 Tasks, 4 Sub-tasks, 1 Story, 1 Bug, 1 Initiative<div class="metric-detail">1 ticket resolved to date</div></td>
+                    <td><span class="risk-medium">4% completion rate</span></td>
+                </tr>
+                <tr>
+                    <td class="metric-label">Priority Breakdown</td>
+                    <td class="metric-value" style="color:var(--red);">22 P0</td>
+                    <td>22 P0 (92%) &bull; 1 P1 &bull; 1 P3<div class="metric-detail">Nearly all tickets are critical priority</div></td>
+                    <td><span class="risk-high">92% at P0 &mdash; High urgency</span></td>
+                </tr>
+                <tr>
+                    <td class="metric-label">Status Distribution</td>
+                    <td class="metric-value" style="color:var(--cyan);">9 In Progress</td>
+                    <td>9 In Progress (37.5%) &bull; 8 Open (33.3%) &bull; 7 Submitted (29.2%)<div class="metric-detail">1 ticket Blocked/On Hold (FDN-2448)</div></td>
+                    <td><span class="risk-medium">62.5% not yet started</span></td>
+                </tr>
+                <tr>
+                    <td class="metric-label">Key Owner</td>
+                    <td class="metric-value">Allen Yin</td>
+                    <td>16 of 24 tickets (66.7%) assigned to Allen Yin<div class="metric-detail">Lanbo Chen: 4 &bull; Others: 4 (1 each)</div></td>
+                    <td><span class="risk-high">Single-person dependency risk</span></td>
+                </tr>
+                <tr>
+                    <td class="metric-label">Last Activity</td>
+                    <td class="metric-value" style="color:var(--green);">Today</td>
+                    <td>7 tickets updated in last 5 days &bull; FDN-2569 updated today<div class="metric-detail">7 tickets stale (8+ days since update)</div></td>
+                    <td><span class="risk-low">Active development ongoing</span></td>
+                </tr>
+                <tr class="exec-row-highlight">
+                    <td class="metric-label">Top Risks</td>
+                    <td class="metric-value" style="color:var(--red);">3</td>
+                    <td>
+                        1. Allen Yin bus factor &mdash; 67% of work on single engineer<br>
+                        2. 15 tickets (62.5%) not yet started (Open/Submitted)<br>
+                        3. Billing (FDN-2441) &amp; Security (FDN-2442) epics: 0% progress, unstarted
+                    </td>
+                    <td><span class="risk-high">Redistribute work; kick off Billing &amp; Security</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Epic Progress Table -->
+    <div class="exec-summary" style="border-top-color: var(--cyan);">
+        <div class="exec-summary-title">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            Epic Progress &mdash; 8 Program Epics
+        </div>
+        <table class="exec-table" id="epicProgressTable">
+            <thead>
+                <tr>
+                    <th style="width:9%">Epic</th>
+                    <th style="width:22%">Summary</th>
+                    <th style="width:10%">Owner</th>
+                    <th style="width:8%">Status</th>
+                    <th style="width:28%">Progress</th>
+                    <th style="width:23%">Notes</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="kpi-row">
+        <div class="kpi-card c-azure">
+            <div class="kpi-label">Open Tickets</div>
+            <div class="kpi-value">24</div>
+            <div class="kpi-detail">1 resolved &bull; 25 total</div>
+        </div>
+        <div class="kpi-card c-red">
+            <div class="kpi-label">P0 Critical</div>
+            <div class="kpi-value" style="color:var(--red);">22</div>
+            <div class="kpi-detail">91.7% of all tickets</div>
+        </div>
+        <div class="kpi-card c-cyan">
+            <div class="kpi-label">In Progress</div>
+            <div class="kpi-value" style="color:var(--cyan);">9</div>
+            <div class="kpi-detail">37.5% actively worked on</div>
+        </div>
+        <div class="kpi-card c-yellow">
+            <div class="kpi-label">Not Started</div>
+            <div class="kpi-value" style="color:var(--yellow);">15</div>
+            <div class="kpi-detail">8 Open + 7 Submitted</div>
+        </div>
+        <div class="kpi-card c-green">
+            <div class="kpi-label">Open Epics</div>
+            <div class="kpi-value">8</div>
+            <div class="kpi-detail">All P0 priority</div>
+        </div>
+    </div>
+
+    <!-- Status + Priority Bars -->
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header"><div class="card-title">Status &amp; Priority Overview</div></div>
+        <div style="margin-bottom: 18px;">
+            <div style="font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Status</div>
+            <div class="stacked-bar">
+                <div class="stacked-segment" style="flex:9; background:var(--cyan);">In Progress: 9</div>
+                <div class="stacked-segment" style="flex:8; background:var(--blue);">Open: 8</div>
+                <div class="stacked-segment" style="flex:7; background:var(--purple);">Submitted: 7</div>
+            </div>
+        </div>
+        <div>
+            <div style="font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Priority</div>
+            <div class="stacked-bar">
+                <div class="stacked-segment" style="flex:22; background:var(--p0);">P0: 22</div>
+                <div class="stacked-segment" style="flex:1; background:var(--p1);">P1</div>
+                <div class="stacked-segment" style="flex:1; background:var(--p3);">P3</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workstream Cards -->
+    <div class="section-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        Workstreams
+    </div>
+    <div class="ws-grid" id="wsGrid"></div>
+
+    <!-- Charts Row -->
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Status by Type</div>
+            </div>
+            <div class="chart-container"><canvas id="statusTypeChart"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Assignee Workload</div>
+                <span class="card-badge card-badge-red">67% on one person</span>
+            </div>
+            <div class="chart-container"><canvas id="assigneeChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Epic Overview -->
+    <div class="section-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        Epic Portfolio (8 Epics)
+    </div>
+    <div class="card" style="margin-bottom: 24px;">
+        <table class="data-table" id="epicTable">
+            <thead><tr><th>Key</th><th>Status</th><th>Assignee</th><th>Age</th><th>Updated</th><th>Summary</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <!-- Full Ticket Table -->
+    <div class="section-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+        All Open Tickets (24)
+    </div>
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="table-scroll">
+            <table class="data-table" id="allTable">
+                <thead><tr><th>Key</th><th>Priority</th><th>Status</th><th>Type</th><th>Assignee</th><th>Age</th><th>Updated</th><th>Parent</th><th>Summary</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<div class="footer">
+    Azure Public Preview Program Dashboard &mdash; <a href="https://anyscale1.atlassian.net/browse/FDN-2578">FDN-2578</a>
+    &bull; Data from <a href="https://anyscale1.atlassian.net">anyscale1.atlassian.net</a>
+    &bull; Generated February 10, 2026
+    <br><a href="fdn_executive_dashboard.html">&larr; Back to FDN Executive Dashboard</a>
+    &bull; <a href="https://anyscale1.atlassian.net/jira/plans/232/scenarios/232/timeline?vid=334">Jira Plan 232</a>
+</div>
+
+<script>
+const JIRA = 'https://anyscale1.atlassian.net/browse/';
+Chart.defaults.color = '#495057';
+Chart.defaults.borderColor = '#e9ecef';
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+function sc(s) {
+    return {'Open':'status-open','Submitted':'status-submitted','In Progress':'status-inprogress','Blocked/On Hold':'status-blocked'}[s] || 'status-open';
+}
+function ageClass(d) { return d > 45 ? 'age-old' : d > 25 ? 'age-mid' : 'age-fresh'; }
+function fmtAge(d) { return d+'d'; }
+
+// ======================== DATA ========================
+const tickets = [
+    {key:"FDN-2578",summary:"[Initiative] Azure Public Preview Program",status:"Open",type:"Initiative",priority:"P0",assignee:"Sanjeeb Bhanja",age:21,updated:21,parent:"",ws:"Customer & Preview"},
+    {key:"FDN-2567",summary:"Azure: SSO & Authentication",status:"In Progress",type:"Epic",priority:"P0",assignee:"Allen Yin",age:21,updated:0,parent:"FDN-2578",ws:"SSO & Auth"},
+    {key:"FDN-2442",summary:"Public Preview Security Requirements",status:"Open",type:"Epic",priority:"P0",assignee:"Emre Saglam",age:32,updated:0,parent:"FDN-2578",ws:"Security"},
+    {key:"FDN-2441",summary:"ORO billing integration",status:"Open",type:"Epic",priority:"P0",assignee:"Aashutosh Khandelwal",age:32,updated:8,parent:"FDN-2578",ws:"Billing"},
+    {key:"FDN-2440",summary:"Azure: Internal requirements",status:"Open",type:"Epic",priority:"P0",assignee:"Lanbo Chen",age:32,updated:7,parent:"FDN-2578",ws:"Internal Req"},
+    {key:"FDN-2439",summary:"Elevate new resources to RP",status:"In Progress",type:"Epic",priority:"P0",assignee:"Lanbo Chen",age:32,updated:4,parent:"FDN-2578",ws:"Resource Provider"},
+    {key:"FDN-2438",summary:"Dataplane setup - 1-click target flow",status:"In Progress",type:"Epic",priority:"P0",assignee:"Lanbo Chen",age:32,updated:4,parent:"FDN-2578",ws:"Dataplane & Infra"},
+    {key:"FDN-2437",summary:"Customer-facing feature parity (features to offer)",status:"In Progress",type:"Epic",priority:"P0",assignee:"Lanbo Chen",age:32,updated:4,parent:"FDN-2578",ws:"Dataplane & Infra"},
+    {key:"FDN-2337",summary:"Azure Private Preview customer bugs & feature requests",status:"Open",type:"Epic",priority:"P0",assignee:"Elizabeth Hu",age:63,updated:8,parent:"FDN-2578",ws:"Customer & Preview"},
+    {key:"FDN-2575",summary:"Improve Implementation of AAD Token",status:"In Progress",type:"Task",priority:"P0",assignee:"Allen Yin",age:21,updated:4,parent:"FDN-2567",ws:"SSO & Auth"},
+    {key:"FDN-2574",summary:"Follow up with Ken/SSO team on future permissions for CLI",status:"Submitted",type:"Task",priority:"P0",assignee:"Allen Yin",age:21,updated:8,parent:"FDN-2567",ws:"SSO & Auth"},
+    {key:"FDN-2573",summary:"Publish Anyscale Entra App in Azure Gallery",status:"In Progress",type:"Task",priority:"P0",assignee:"Allen Yin",age:21,updated:4,parent:"FDN-2567",ws:"SSO & Auth"},
+    {key:"FDN-2571",summary:"Provide docs/scripts for enterprise customer onboarding",status:"Submitted",type:"Task",priority:"P0",assignee:"Allen Yin",age:21,updated:8,parent:"FDN-2567",ws:"SSO & Auth"},
+    {key:"FDN-2570",summary:"Support Service Accounts in Azure SSO flow",status:"Submitted",type:"Task",priority:"P0",assignee:"Allen Yin",age:21,updated:8,parent:"FDN-2567",ws:"SSO & Auth"},
+    {key:"FDN-2569",summary:"Update SSO to use object id/tenant id instead of email",status:"In Progress",type:"Task",priority:"P0",assignee:"Allen Yin",age:21,updated:1,parent:"FDN-2567",ws:"SSO & Auth"},
+    {key:"FDN-2472",summary:"[Elevating resources to RP] - RBAC support Azure <-> Anyscale",status:"In Progress",type:"Story",priority:"P0",assignee:"Allen Yin",age:29,updated:4,parent:"FDN-2439",ws:"RBAC"},
+    {key:"FDN-2577",summary:"Standardize new RP namespace workflows",status:"In Progress",type:"Sub-task",priority:"P0",assignee:"Allen Yin",age:21,updated:4,parent:"FDN-2445",ws:"Resource Provider"},
+    {key:"FDN-2576",summary:"Prototype new RBAC approach (alt to checkaccess API)",status:"Open",type:"Sub-task",priority:"P0",assignee:"Allen Yin",age:21,updated:21,parent:"FDN-2472",ws:"RBAC"},
+    {key:"FDN-2535",summary:"Implement job/service/workspace RP in azure api pod",status:"Open",type:"Sub-task",priority:"P0",assignee:"Allen Yin",age:26,updated:21,parent:"FDN-2445",ws:"Resource Provider"},
+    {key:"FDN-2534",summary:"Design job/service/workspace RP resource in typespec",status:"Open",type:"Sub-task",priority:"P0",assignee:"Allen Yin",age:26,updated:21,parent:"FDN-2445",ws:"Resource Provider"},
+    {key:"FDN-2431",summary:"[Bug] Audit log doesn't work for azure clouds",status:"Submitted",type:"Bug",priority:"P0",assignee:"Allen Yin",age:33,updated:12,parent:"FDN-609",ws:"Security"},
+    {key:"FDN-2382",summary:"Show a small preview flag in the Portal UI",status:"Submitted",type:"Task",priority:"P3",assignee:"Allen Yin",age:54,updated:8,parent:"FDN-2337",ws:"Customer & Preview"},
+    {key:"FDN-2381",summary:"Investigate Anyscale discoverability issue in Azure portal",status:"Submitted",type:"Task",priority:"P1",assignee:"Allen Yin",age:54,updated:8,parent:"FDN-2337",ws:"Customer & Preview"},
+    {key:"FDN-2350",summary:"Customer/user-friendly cloud name input into RP",status:"Submitted",type:"Task",priority:"P0",assignee:"Allen Yin",age:61,updated:8,parent:"FDN-2337",ws:"Resource Provider"},
+];
+
+// ======================== WORKSTREAM CARDS ========================
+const wsMap = {};
+tickets.forEach(t => {
+    if (!wsMap[t.ws]) wsMap[t.ws] = {ip: 0, open: 0, sub: 0, tickets: []};
+    if (t.status === 'In Progress') wsMap[t.ws].ip++;
+    else if (t.status === 'Open') wsMap[t.ws].open++;
+    else wsMap[t.ws].sub++;
+    wsMap[t.ws].tickets.push(t);
+});
+const wsColors = {'SSO & Auth':'#0078d4','Resource Provider':'#8b5cf6','Customer & Preview':'#f59e0b','Security':'#ef4444','Dataplane & Infra':'#06b6d4','RBAC':'#f97316','Billing':'#ec4899','Internal Req':'#10b981','Other':'#64748b'};
+const wsGrid = document.getElementById('wsGrid');
+Object.entries(wsMap).sort((a,b) => b[1].tickets.length - a[1].tickets.length).forEach(([name, data]) => {
+    const total = data.tickets.length;
+    const color = wsColors[name] || '#64748b';
+    const card = document.createElement('div');
+    card.className = 'ws-card';
+    card.style.borderLeft = `3px solid ${color}`;
+    card.innerHTML = `
+        <div class="ws-card-title"><div class="ws-dot" style="background:${color}"></div>${name}</div>
+        <div class="ws-meta">
+            <span><strong>${total}</strong> tickets</span>
+            <span style="color:var(--cyan)">${data.ip} in progress</span>
+            <span style="color:var(--blue)">${data.open} open</span>
+            <span style="color:var(--purple)">${data.sub} submitted</span>
+        </div>
+        <div class="ws-tickets">
+            ${data.tickets.map(t => {
+                const cls = t.status === 'In Progress' ? 'ip' : t.status === 'Open' ? 'open' : 'sub';
+                return `<a href="${JIRA}${t.key}" target="_blank" class="ws-ticket-tag ${cls}">${t.key}</a>`;
+            }).join('')}
+        </div>
+    `;
+    wsGrid.appendChild(card);
+});
+
+// ======================== STATUS BY TYPE CHART ========================
+new Chart(document.getElementById('statusTypeChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Epic', 'Task', 'Sub-task', 'Story', 'Bug', 'Initiative'],
+        datasets: [
+            { label: 'In Progress', data: [4, 3, 1, 1, 0, 0], backgroundColor: 'rgba(6,182,212,0.7)', borderRadius: 3 },
+            { label: 'Open', data: [4, 0, 3, 0, 0, 1], backgroundColor: 'rgba(59,130,246,0.7)', borderRadius: 3 },
+            { label: 'Submitted', data: [0, 6, 0, 0, 1, 0], backgroundColor: 'rgba(139,92,246,0.7)', borderRadius: 3 },
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10 } } },
+        scales: {
+            x: { stacked: true, grid: { display: false } },
+            y: { stacked: true, beginAtZero: true, grid: { color: '#e9ecef' }, ticks: { stepSize: 2 } }
+        }
+    }
+});
+
+// ======================== ASSIGNEE CHART ========================
+new Chart(document.getElementById('assigneeChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Allen Yin (16)', 'Lanbo Chen (4)', 'Elizabeth Hu (1)', 'Emre Saglam (1)', 'Aashutosh K. (1)', 'Sanjeeb B. (1)'],
+        datasets: [{
+            data: [16, 4, 1, 1, 1, 1],
+            backgroundColor: ['#0078d4', '#06b6d4', '#8b5cf6', '#ef4444', '#f59e0b', '#10b981'],
+            borderWidth: 2, borderColor: '#ffffff', hoverOffset: 8
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false, cutout: '58%',
+        plugins: { legend: { position: 'right', labels: { padding: 12, usePointStyle: true, pointStyleWidth: 10, font: { size: 12 } } } }
+    }
+});
+
+// ======================== EPIC PROGRESS TABLE (Executive Summary) ========================
+const epicProgressData = [
+    {key:"FDN-2567", summary:"Azure: SSO & Authentication", owner:"Allen Yin", status:"In Progress", total:7, done:1, ip:3, open:3, pct:14, notes:"AAD token improvement & Entra app publishing in progress"},
+    {key:"FDN-2442", summary:"Public Preview Security Requirements", owner:"Emre Saglam", status:"Open", total:1, done:0, ip:0, open:1, pct:0, notes:"Audit log bug (FDN-2431) submitted; epic not started"},
+    {key:"FDN-2441", summary:"ORO Billing Integration", owner:"Aashutosh K.", status:"Open", total:0, done:0, ip:0, open:0, pct:0, notes:"No child tickets created yet — needs kickoff"},
+    {key:"FDN-2440", summary:"Azure: Internal Requirements", owner:"Lanbo Chen", status:"Open", total:7, done:1, ip:4, open:2, pct:14, notes:"4 tasks in progress; feature parity work underway"},
+    {key:"FDN-2439", summary:"Elevate New Resources to RP", owner:"Lanbo Chen", status:"In Progress", total:2, done:0, ip:2, open:0, pct:0, notes:"Namespace workflows & resource design in progress"},
+    {key:"FDN-2438", summary:"Dataplane Setup — 1-Click Target Flow", owner:"Lanbo Chen", status:"In Progress", total:3, done:0, ip:2, open:1, pct:0, notes:"Feature parity work in progress"},
+    {key:"FDN-2437", summary:"Customer-Facing Feature Parity", owner:"Lanbo Chen", status:"In Progress", total:14, done:1, ip:7, open:6, pct:7, notes:"Largest epic — 7 tasks actively in progress"},
+    {key:"FDN-2337", summary:"Azure Customer Bugs & Feature Requests", owner:"Elizabeth Hu", status:"Open", total:14, done:0, ip:0, open:14, pct:0, notes:"14 open tickets; none started — oldest epic (63d)"},
+];
+const epTb = document.querySelector('#epicProgressTable tbody');
+epicProgressData.forEach(e => {
+    const barDone = e.total > 0 ? (e.done / e.total * 100) : 0;
+    const barIp = e.total > 0 ? (e.ip / e.total * 100) : 0;
+    const barOpen = e.total > 0 ? (e.open / e.total * 100) : 0;
+    const pctColor = e.pct >= 50 ? 'var(--green)' : e.pct >= 10 ? 'var(--yellow)' : 'var(--red)';
+    epTb.innerHTML += `<tr>
+        <td><a class="key-link" href="${JIRA}${e.key}" target="_blank">${e.key}</a></td>
+        <td style="font-weight:600;font-size:12px;">${e.summary}</td>
+        <td style="font-size:12px;">${e.owner}</td>
+        <td><span class="status-badge ${sc(e.status)}">${e.status}</span></td>
+        <td>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="flex:1;height:10px;background:#e9ecef;border-radius:5px;overflow:hidden;display:flex;">
+                    ${barDone > 0 ? `<div style="width:${barDone}%;background:var(--green);"></div>` : ''}
+                    ${barIp > 0 ? `<div style="width:${barIp}%;background:var(--cyan);"></div>` : ''}
+                    ${barOpen > 0 ? `<div style="width:${barOpen}%;background:#d1d5db;"></div>` : ''}
+                </div>
+                <span style="font-size:12px;font-weight:700;color:${pctColor};min-width:36px;text-align:right;">${e.pct}%</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+                ${e.total > 0 ? `<span style="color:var(--green)">${e.done} done</span> · <span style="color:var(--cyan)">${e.ip} in progress</span> · ${e.open} open` : '<span style="color:var(--text-muted)">No child tickets</span>'}
+            </div>
+        </td>
+        <td style="font-size:12px;color:var(--text-secondary);">${e.notes}</td>
+    </tr>`;
+});
+
+// ======================== EPIC TABLE ========================
+const epics = tickets.filter(t => t.type === 'Epic');
+const epicTb = document.querySelector('#epicTable tbody');
+epics.forEach(t => {
+    epicTb.innerHTML += `<tr>
+        <td><a class="key-link" href="${JIRA}${t.key}" target="_blank">${t.key}</a></td>
+        <td><span class="status-badge ${sc(t.status)}">${t.status}</span></td>
+        <td>${t.assignee}</td>
+        <td class="age-badge ${ageClass(t.age)}">${fmtAge(t.age)}</td>
+        <td>${t.updated === 0 ? '<span style="color:var(--green)">Today</span>' : t.updated + 'd ago'}</td>
+        <td>${t.summary}</td>
+    </tr>`;
+});
+
+// ======================== ALL TICKETS TABLE ========================
+const allTb = document.querySelector('#allTable tbody');
+tickets.forEach(t => {
+    allTb.innerHTML += `<tr>
+        <td><a class="key-link" href="${JIRA}${t.key}" target="_blank">${t.key}</a></td>
+        <td><span class="priority-badge priority-${t.priority}">${t.priority}</span></td>
+        <td><span class="status-badge ${sc(t.status)}">${t.status}</span></td>
+        <td><span class="type-badge">${t.type}</span></td>
+        <td>${t.assignee}</td>
+        <td class="age-badge ${ageClass(t.age)}">${fmtAge(t.age)}</td>
+        <td>${t.updated === 0 ? '<span style="color:var(--green)">Today</span>' : t.updated + 'd ago'}</td>
+        <td>${t.parent ? `<a class="key-link" href="${JIRA}${t.parent}" target="_blank">${t.parent}</a>` : '&mdash;'}</td>
+        <td>${t.summary}</td>
+    </tr>`;
+});
+</script>
+
+</body>
+</html>
