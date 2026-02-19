@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compute Efficiency — Board Visibility Action Items (MRC + GRSv2)</title>
+<style>
+  :root {
+    --orange: #FF991F; --orange-d: #FF8B00; --orange-l: #FFFAE6;
+    --green: #00875A; --green-l: #E3FCEF;
+    --red: #DE350B; --red-l: #FFEBE6;
+    --blue: #0052CC; --blue-l: #DEEBFF;
+    --purple: #6554C0; --purple-l: #EAE6FF;
+    --teal: #00B8D9; --teal-l: #E6FCFF;
+    --gray-900: #091E42; --gray-700: #253858; --gray-500: #42526E;
+    --gray-400: #5E6C84; --gray-300: #7A869A; --gray-200: #B3BAC5;
+    --gray-100: #DFE1E6; --gray-50: #F4F5F7; --white: #FFFFFF;
+    --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px;
+    --shadow-sm: 0 1px 3px rgba(9,30,66,.12), 0 0 1px rgba(9,30,66,.08);
+    --shadow-md: 0 3px 8px rgba(9,30,66,.15), 0 0 1px rgba(9,30,66,.10);
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 14px; }
+  body { font-family: var(--font); background: #F0F2F5; color: var(--gray-900); line-height: 1.5; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .page { max-width: 1100px; margin: 0 auto; padding: 24px 20px 48px; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #00875A 0%, #003884 100%);
+    border-radius: var(--radius-lg);
+    padding: 28px 32px;
+    color: var(--white);
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: ''; position: absolute; top: -30px; right: -30px;
+    width: 180px; height: 180px; background: rgba(255,255,255,.06); border-radius: 50%;
+  }
+  .header-label { font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; opacity: .7; margin-bottom: 6px; }
+  .header-title { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+  .header-sub { font-size: 13px; opacity: .85; margin-bottom: 16px; }
+  .header-stats { display: flex; gap: 24px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.2); }
+  .stat { text-align: center; }
+  .stat-num { font-size: 28px; font-weight: 700; }
+  .stat-label { font-size: 11px; opacity: .7; }
+  .stat-num.red { color: #FF8F73; }
+  .stat-num.green { color: #79F2C0; }
+  .stat-num.amber { color: #FFE380; }
+
+  /* Section divider */
+  .section-divider {
+    background: linear-gradient(135deg, var(--blue) 0%, var(--purple) 100%);
+    border-radius: var(--radius-lg);
+    padding: 20px 28px;
+    color: var(--white);
+    margin: 36px 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .section-divider.green-bg { background: linear-gradient(135deg, #00875A 0%, #006644 100%); }
+  .sd-title { font-size: 20px; font-weight: 700; }
+  .sd-sub { font-size: 12px; opacity: .8; margin-top: 2px; }
+
+  /* Problem Statement */
+  .problem-banner {
+    background: var(--red-l);
+    border: 2px solid var(--red);
+    border-radius: var(--radius-md);
+    padding: 18px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .problem-icon { font-size: 28px; flex-shrink: 0; }
+  .problem-title { font-size: 15px; font-weight: 700; color: var(--red); margin-bottom: 4px; }
+  .problem-body { font-size: 13px; color: var(--gray-700); line-height: 1.6; }
+
+  /* Section */
+  .section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--gray-400); margin-bottom: 14px; margin-top: 28px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--gray-100); }
+
+  /* Cards */
+  .card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 16px; }
+  .card-header { padding: 14px 18px 12px; border-bottom: 1px solid var(--gray-50); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--gray-700); text-transform: uppercase; letter-spacing: .4px; display: flex; align-items: center; gap: 8px; }
+  .card-body { padding: 16px 18px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+  .badge-red { background: var(--red-l); color: var(--red); }
+  .badge-green { background: var(--green-l); color: var(--green); }
+  .badge-blue { background: var(--blue-l); color: var(--blue); }
+  .badge-orange { background: var(--orange-l); color: var(--orange-d); }
+  .badge-purple { background: var(--purple-l); color: var(--purple); }
+  .badge-gray { background: var(--gray-50); color: var(--gray-500); border: 1px solid var(--gray-100); }
+
+  /* Ticket table */
+  .ticket-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ticket-table th {
+    text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--gray-400); padding: 8px 10px; border-bottom: 2px solid var(--gray-100);
+  }
+  .ticket-table td { padding: 10px 10px; border-bottom: 1px solid var(--gray-50); vertical-align: middle; }
+  .ticket-table tr:last-child td { border-bottom: none; }
+  .ticket-table tr:hover td { background: var(--gray-50); }
+  .ticket-key { font-family: monospace; font-weight: 600; font-size: 12px; }
+  .type-badge { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 8px; text-transform: uppercase; }
+  .type-initiative { background: #E6FCFF; color: #006644; }
+  .type-epic { background: var(--purple-l); color: var(--purple); }
+  .type-story { background: var(--green-l); color: var(--green); }
+  .type-task { background: var(--blue-l); color: var(--blue); }
+  .status-badge { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 8px; }
+  .s-open { background: var(--gray-50); color: var(--gray-500); border: 1px solid var(--gray-100); }
+  .s-inprogress { background: var(--blue-l); color: var(--blue); }
+  .s-submitted { background: var(--blue-l); color: var(--blue); }
+  .s-blocked { background: var(--red-l); color: var(--red); }
+  .s-closed { background: var(--green-l); color: var(--green); }
+  .s-missing { background: var(--red-l); color: var(--red); border: 1px dashed var(--red); }
+  .label-status { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px; text-transform: uppercase; letter-spacing: .3px; }
+  .label-missing { background: var(--red); color: var(--white); }
+  .label-present { background: var(--green); color: var(--white); }
+
+  /* Action items */
+  .action-list { list-style: none; counter-reset: action; }
+  .action-item {
+    counter-increment: action;
+    display: flex; gap: 14px; padding: 14px 0;
+    border-bottom: 1px solid var(--gray-50); align-items: flex-start;
+  }
+  .action-item:last-child { border-bottom: none; }
+  .action-num {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: var(--white);
+  }
+  .action-num.priority-urgent { background: var(--red); }
+  .action-num.priority-high { background: var(--orange); }
+  .action-num.priority-medium { background: var(--blue); }
+  .action-content { flex: 1; }
+  .action-title { font-size: 14px; font-weight: 600; color: var(--gray-900); margin-bottom: 3px; }
+  .action-desc { font-size: 12px; color: var(--gray-500); line-height: 1.5; }
+  .action-meta { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .action-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 8px; }
+  .tag-api { background: var(--purple-l); color: var(--purple); }
+  .tag-manual { background: var(--orange-l); color: var(--orange-d); }
+  .tag-verify { background: var(--green-l); color: var(--green); }
+  .tag-tickets { background: var(--blue-l); color: var(--blue); }
+  .tag-create { background: var(--teal-l); color: #006644; }
+
+  /* Hierarchy diagram */
+  .hierarchy { padding: 16px 0; font-size: 13px; }
+  .h-row { display: flex; align-items: center; gap: 6px; padding: 4px 0; flex-wrap: wrap; }
+  .h-connector { color: var(--gray-200); font-family: monospace; font-size: 14px; }
+  .h-key { font-family: monospace; font-weight: 600; font-size: 12px; color: var(--blue); background: var(--blue-l); padding: 1px 7px; border-radius: 6px; }
+  .h-key.missing { background: var(--red-l); color: var(--red); border: 1px dashed var(--red); }
+  .h-type { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 6px; }
+  .h-name { font-size: 13px; color: var(--gray-700); }
+  .h-label-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .h-label-dot.present { background: var(--green); }
+  .h-label-dot.missing { background: var(--red); }
+
+  /* JQL box */
+  .jql-box {
+    background: var(--gray-900); color: #79F2C0; border-radius: var(--radius-md);
+    padding: 14px 18px; font-family: 'SFMono-Regular', Consolas, monospace; font-size: 12px;
+    overflow-x: auto; margin: 8px 0; line-height: 1.6;
+  }
+  .jql-comment { color: var(--gray-300); }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* Progress */
+  .progress-track { background: var(--gray-100); border-radius: 6px; height: 10px; overflow: hidden; margin: 8px 0; }
+  .progress-fill { height: 100%; border-radius: 6px; transition: width .5s ease; }
+  .pf-red { background: var(--red); }
+  .pf-green { background: var(--green); }
+
+  /* Footer */
+  .footer { text-align: center; padding: 24px 0 0; color: var(--gray-300); font-size: 12px; border-top: 1px solid var(--gray-100); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- HEADER -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="header">
+    <div class="header-label">Action Plan — MRC Complete &middot; GRSv2 Pending</div>
+    <div class="header-title">Compute Efficiency — Board Visibility (MRC + GRSv2-K8s)</div>
+    <div class="header-sub">
+      Ensure all Compute Efficiency tickets appear on the FDN Foundation Jira Board (Board #13)
+      &nbsp;&middot;&nbsp; Initiative: <a href="https://anyscale1.atlassian.net/browse/FDN-2719" target="_blank" style="color:rgba(255,255,255,.85);">FDN-2719</a>
+    </div>
+    <div class="header-stats">
+      <div class="stat">
+        <div class="stat-num green">10</div>
+        <div class="stat-label">MRC Tickets (Done)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num red">0</div>
+        <div class="stat-label">GRSv2 Tickets</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num amber">13</div>
+        <div class="stat-label">GRSv2 To Create (1E+7T+5ST)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num red">6</div>
+        <div class="stat-label">Existing GRS (Unlabeled)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 1: MRC — COMPLETED                                    -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section-divider green-bg">
+    <div>
+      <div class="sd-title">Section 1: MRC (Multi-Resource Clouds)</div>
+      <div class="sd-sub">DRI: Nickhil Gupta &middot; Epic: FDN-2720 &middot; 10 tickets &middot; Board visibility: 100%</div>
+    </div>
+    <span class="badge badge-green" style="font-size:14px;padding:6px 16px;">COMPLETED</span>
+  </div>
+
+  <!-- MRC Status Banner -->
+  <div class="problem-banner" style="background:var(--green-l);border-color:var(--green);">
+    <div class="problem-icon">&#9989;</div>
+    <div>
+      <div class="problem-title" style="color:var(--green);">Resolved: All 10 MRC tickets now visible on the FDN Board</div>
+      <div class="problem-body">
+        The <code style="background:var(--orange-l);padding:1px 6px;border-radius:4px;font-size:12px;color:var(--orange-d);font-weight:600;">initiative-compute-efficiency</code>
+        label has been added to all 9 MRC tickets (1 epic + 8 children) via the Jira API.
+        Combined with FDN-2719 (which already had the label), all 10 Compute Efficiency tickets
+        are now visible on the FDN Foundation Board (Board #13) when filtered by initiative.<br><br>
+        <strong>Note:</strong> FDN-2721 (Billing) and FDN-2722 (SIM &amp; AutoScaler), though linked under the initiative,
+        are <strong>not part of Compute Efficiency</strong> per the plan and were intentionally excluded.
+      </div>
+    </div>
+  </div>
+
+  <!-- MRC Hierarchy -->
+  <div class="section-title">MRC Ticket Hierarchy &mdash; Labels &amp; Status</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">FDN-2719 &rarr; FDN-2720 MRC Ticket Tree</div>
+      <span class="badge badge-green">10 labeled</span>
+    </div>
+    <div class="card-body">
+      <div class="hierarchy">
+        <div class="h-row">
+          <span class="h-label-dot present"></span>
+          <a class="h-key" href="https://anyscale1.atlassian.net/browse/FDN-2719" target="_blank">FDN-2719</a>
+          <span class="h-type type-initiative">Initiative</span>
+          <span class="h-name">[Initiative] Compute Efficiency</span>
+          <span class="label-status label-present">initiative-compute-efficiency</span>
+        </div>
+        <div class="h-row" style="padding-left:28px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-label-dot present"></span>
+          <a class="h-key" href="https://anyscale1.atlassian.net/browse/FDN-2720" target="_blank">FDN-2720</a>
+          <span class="h-type type-epic">Epic</span>
+          <span class="h-name">MRC</span>
+          <span class="status-badge s-inprogress">In Progress</span>
+          <span class="badge badge-orange" style="margin-left:4px;">epic-mrc</span>
+          <span class="label-status label-present">LABELED</span>
+        </div>
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-label-dot present"></span>
+          <a class="h-key" href="https://anyscale1.atlassian.net/browse/FDN-2436" target="_blank">FDN-2436</a>
+          <span class="h-type type-task">Task</span>
+          <span class="h-name">Make anyscale cloud resource setup work for VM stacks</span>
+          <span class="status-badge s-closed">Closed</span>
+        </div>
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-label-dot present"></span>
+          <a class="h-key" href="https://anyscale1.atlassian.net/browse/FDN-2723" target="_blank">FDN-2723</a>
+          <span class="h-type type-story">Story</span>
+          <span class="h-name">Add support for WS (Workspaces)</span>
+          <span class="status-badge s-submitted">Submitted</span>
+        </div>
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-label-dot present"></span>
+          <a class="h-key" href="https://anyscale1.atlassian.net/browse/FDN-2724" target="_blank">FDN-2724</a>
+          <span class="h-type type-story">Story</span>
+          <span class="h-name">Neo Cloud support</span>
+          <span class="status-badge s-submitted">Submitted</span>
+        </div>
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-label-dot present"></span>
+          <a class="h-key" href="https://anyscale1.atlassian.net/browse/FDN-2725" target="_blank">FDN-2725</a>
+          <span class="h-type type-story">Story</span>
+          <span class="h-name">New cloud setup (CLI improvements)</span>
+          <span class="status-badge s-inprogress">In Progress</span>
+        </div>
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-label-dot present"></span>
+          <a class="h-key" href="https://anyscale1.atlassian.net/browse/FDN-2726" target="_blank">FDN-2726</a>
+          <span class="h-type type-story">Story</span>
+          <span class="h-name">Testing Env Setup</span>
+          <span class="status-badge s-submitted">Submitted</span>
+        </div>
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-label-dot present"></span>
+          <a class="h-key" href="https://anyscale1.atlassian.net/browse/FDN-2727" target="_blank">FDN-2727</a>
+          <span class="h-type type-story">Story</span>
+          <span class="h-name">MRC User Experience &amp; Performance</span>
+          <span class="status-badge s-inprogress">In Progress</span>
+        </div>
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-label-dot present"></span>
+          <a class="h-key" href="https://anyscale1.atlassian.net/browse/FDN-2728" target="_blank">FDN-2728</a>
+          <span class="h-type type-story">Story</span>
+          <span class="h-name">Data Locality</span>
+          <span class="status-badge s-submitted">Submitted</span>
+        </div>
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9492;&#9472;&#9472;</span>
+          <span class="h-label-dot present"></span>
+          <a class="h-key" href="https://anyscale1.atlassian.net/browse/FDN-2741" target="_blank">FDN-2741</a>
+          <span class="h-type type-task">Task</span>
+          <span class="h-name">Cloud resource update</span>
+          <span class="status-badge s-closed">Closed</span>
+          <span style="background:var(--orange-l);color:var(--orange-d);font-size:10px;font-weight:600;padding:1px 6px;border-radius:6px;margin-left:4px;">still missing epic-mrc</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MRC Completed Actions Summary -->
+  <div class="section-title">MRC Actions &mdash; All Completed</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">&#9989; MRC Label Fix (9 tickets)</div>
+      <span class="badge badge-green">COMPLETED</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:10px;">
+        <code style="background:var(--orange-l);padding:1px 6px;border-radius:4px;font-size:12px;color:var(--orange-d);font-weight:600;">initiative-compute-efficiency</code>
+        label added to all 9 MRC tickets. All 10 MRC tickets now visible on FDN Board #13.
+      </p>
+      <div style="background:var(--green-l);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--green);font-weight:600;">
+        &#9989; FDN-2720, FDN-2436, FDN-2723, FDN-2724, FDN-2725, FDN-2726, FDN-2727, FDN-2728, FDN-2741 &mdash; all labeled
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 2: GRSv2-K8s — PENDING                                -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section-divider">
+    <div>
+      <div class="sd-title">Section 2: GRSv2-K8s (Global Resource Scheduler v2)</div>
+      <div class="sd-sub">DRI: Pratik Padalia &middot; No Epic exists &middot; 13 tickets to create (1 Epic + 7 Tasks + 5 Subtasks) &middot; Board visibility: 0%</div>
+    </div>
+    <span class="badge badge-red" style="font-size:14px;padding:6px 16px;">ACTION REQUIRED</span>
+  </div>
+
+  <!-- GRSv2 Problem Banner -->
+  <div class="problem-banner">
+    <div class="problem-icon">&#9888;&#65039;</div>
+    <div>
+      <div class="problem-title">Critical: GRSv2-K8s has ZERO tickets on the FDN Foundation Board</div>
+      <div class="problem-body">
+        Pratik Padalia's updated GRSv2-K8s plan defines <strong>1 Epic + 7 Tasks + 5 Subtasks = 13 tickets</strong> to create.
+        Three engineers are involved: <strong>Pratik</strong>, <strong>Sanket</strong>, and <strong>Dashrath</strong>.
+        However, <strong>no GRSv2 tickets exist in Jira</strong> today. Total effort: ~9 weeks.
+        <br><br>
+        <strong>Result:</strong> The Foundation Board has no visibility into GRSv2 planning, progress, or blockers.
+        Sprint planning cannot track this critical workstream.
+      </div>
+    </div>
+  </div>
+
+  <!-- GRSv2 Ticket Plan -->
+  <div class="section-title">GRSv2-K8s Ticket Plan (Epic &rarr; Task &rarr; Subtask)</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">&#128203; Epic: GRS-V2-K8s</div>
+      <span class="badge badge-red">13 Tickets to Create</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:16px;">
+        Hierarchy: <strong>Epic &rarr; Task &rarr; Subtask</strong>. Tasks will be added to sprints.
+        All tickets labeled <code style="background:var(--blue-l);padding:1px 6px;border-radius:4px;font-size:12px;color:var(--blue);font-weight:600;">initiative-compute-efficiency</code> +
+        <code style="background:var(--purple-l);padding:1px 6px;border-radius:4px;font-size:12px;color:var(--purple);">epic-grsv2</code>.
+        Parent Epic under FDN-2719 (Compute Efficiency Initiative).
+      </p>
+
+      <!-- Tasks Table -->
+      <table class="ticket-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Task</th>
+            <th>Owner</th>
+            <th>Effort</th>
+            <th>Subtasks</th>
+            <th>Jira Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background:rgba(222,53,11,.04);">
+            <td><span style="font-family:monospace;font-weight:700;color:var(--blue);">T1</span></td>
+            <td><strong>Postgres DB changes for GRS K8s</strong></td>
+            <td>Pratik</td>
+            <td>1 wk</td>
+            <td>&mdash;</td>
+            <td><span class="status-badge s-missing">NO TICKET</span></td>
+          </tr>
+          <tr style="background:rgba(222,53,11,.04);">
+            <td><span style="font-family:monospace;font-weight:700;color:var(--blue);">T2</span></td>
+            <td><strong>GRS config DTO and DAO</strong></td>
+            <td>Pratik</td>
+            <td>0.5 wk</td>
+            <td>&mdash;</td>
+            <td><span class="status-badge s-missing">NO TICKET</span></td>
+          </tr>
+          <tr style="background:rgba(222,53,11,.04);">
+            <td><span style="font-family:monospace;font-weight:700;color:var(--blue);">T3</span></td>
+            <td><strong>CLI and API changes for GRS config</strong></td>
+            <td>Dashrath</td>
+            <td>2 wk</td>
+            <td>&mdash;</td>
+            <td><span class="status-badge s-missing">NO TICKET</span></td>
+          </tr>
+          <tr style="background:rgba(222,53,11,.04);">
+            <td><span style="font-family:monospace;font-weight:700;color:var(--blue);">T4</span></td>
+            <td><strong>ResourceManager service creation</strong></td>
+            <td>Sanket</td>
+            <td>2 wk</td>
+            <td>
+              <span class="badge badge-purple" style="font-size:10px;">3 subtasks</span>
+            </td>
+            <td><span class="status-badge s-missing">NO TICKET</span></td>
+          </tr>
+          <tr style="background:rgba(101,84,192,.06);padding-left:20px;">
+            <td></td>
+            <td style="padding-left:24px;font-size:12px;color:var(--gray-500);">&#8627; Create gRPC service</td>
+            <td style="font-size:12px;color:var(--gray-400);">Sanket</td>
+            <td style="font-size:12px;">1 wk</td>
+            <td></td>
+            <td><span class="status-badge s-missing" style="font-size:9px;">NO TICKET</span></td>
+          </tr>
+          <tr style="background:rgba(101,84,192,.06);">
+            <td></td>
+            <td style="padding-left:24px;font-size:12px;color:var(--gray-500);">&#8627; Valkey integration</td>
+            <td style="font-size:12px;color:var(--gray-400);">Sanket</td>
+            <td style="font-size:12px;">1 wk</td>
+            <td></td>
+            <td><span class="status-badge s-missing" style="font-size:9px;">NO TICKET</span></td>
+          </tr>
+          <tr style="background:rgba(101,84,192,.06);">
+            <td></td>
+            <td style="padding-left:24px;font-size:12px;color:var(--gray-500);">&#8627; Add API to add GRS config to Valkey</td>
+            <td style="font-size:12px;color:var(--gray-400);">Sanket</td>
+            <td style="font-size:12px;">0.5 wk</td>
+            <td></td>
+            <td><span class="status-badge s-missing" style="font-size:9px;">NO TICKET</span></td>
+          </tr>
+          <tr style="background:rgba(222,53,11,.04);">
+            <td><span style="font-family:monospace;font-weight:700;color:var(--blue);">T5</span></td>
+            <td><strong>Fetching resource queues in SIM from ResourceManager</strong></td>
+            <td>Pratik</td>
+            <td>2 wk</td>
+            <td>
+              <span class="badge badge-purple" style="font-size:10px;">2 subtasks</span>
+            </td>
+            <td><span class="status-badge s-missing">NO TICKET</span></td>
+          </tr>
+          <tr style="background:rgba(101,84,192,.06);">
+            <td></td>
+            <td style="padding-left:24px;font-size:12px;color:var(--gray-500);">&#8627; ResourceManager to fetch ResourceQueues using scheduling rules</td>
+            <td style="font-size:12px;color:var(--gray-400);">Pratik</td>
+            <td style="font-size:12px;">1 wk</td>
+            <td></td>
+            <td><span class="status-badge s-missing" style="font-size:9px;">NO TICKET</span></td>
+          </tr>
+          <tr style="background:rgba(101,84,192,.06);">
+            <td></td>
+            <td style="padding-left:24px;font-size:12px;color:var(--gray-500);">&#8627; SIM - ResourceManager integration</td>
+            <td style="font-size:12px;color:var(--gray-400);">Pratik</td>
+            <td style="font-size:12px;">0.5 wk</td>
+            <td></td>
+            <td><span class="status-badge s-missing" style="font-size:9px;">NO TICKET</span></td>
+          </tr>
+          <tr style="background:rgba(222,53,11,.04);">
+            <td><span style="font-family:monospace;font-weight:700;color:var(--blue);">T6</span></td>
+            <td><strong>Provisioning instances via ResourceManager</strong></td>
+            <td>Sanket</td>
+            <td>1 wk</td>
+            <td>&mdash;</td>
+            <td><span class="status-badge s-missing">NO TICKET</span></td>
+          </tr>
+          <tr style="background:rgba(222,53,11,.04);">
+            <td><span style="font-family:monospace;font-weight:700;color:var(--blue);">T7</span></td>
+            <td><strong>Feature flag to enable GRS v2 for K8s</strong></td>
+            <td>Dashrath</td>
+            <td>0.5 wk</td>
+            <td>&mdash;</td>
+            <td><span class="status-badge s-missing">NO TICKET</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top:14px;background:var(--red-l);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--red);font-weight:600;display:flex;align-items:center;gap:8px;">
+        &#9888; All 13 tickets (1 Epic + 7 Tasks + 5 Subtasks) need to be created. Total effort: ~9 weeks across 3 engineers.
+      </div>
+
+      <!-- Team breakdown -->
+      <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+        <div style="background:var(--blue-l);border-radius:var(--radius-md);padding:14px 16px;text-align:center;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue);margin-bottom:4px;">Pratik Padalia</div>
+          <div style="font-size:24px;font-weight:900;color:var(--blue);">4.5 wk</div>
+          <div style="font-size:11px;color:var(--gray-400);">T1 (1wk) + T2 (0.5wk) + T5 (2wk) + subtasks</div>
+        </div>
+        <div style="background:var(--purple-l);border-radius:var(--radius-md);padding:14px 16px;text-align:center;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--purple);margin-bottom:4px;">Sanket</div>
+          <div style="font-size:24px;font-weight:900;color:var(--purple);">3 wk</div>
+          <div style="font-size:11px;color:var(--gray-400);">T4 (2wk) + T6 (1wk)</div>
+        </div>
+        <div style="background:var(--orange-l);border-radius:var(--radius-md);padding:14px 16px;text-align:center;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--orange-d);margin-bottom:4px;">Dashrath</div>
+          <div style="font-size:24px;font-weight:900;color:var(--orange-d);">2.5 wk</div>
+          <div style="font-size:11px;color:var(--gray-400);">T3 (2wk) + T7 (0.5wk)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Existing GRS Tickets (V1 era) -->
+  <div class="section-title">Existing GRS Tickets in Jira (V1 Era) &mdash; Inconsistent Labels</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">&#127991; Existing GRS-related tickets</div>
+      <span class="badge badge-orange">Inconsistent Labels</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:14px;">
+        These existing GRS tickets use a mix of labels: <code style="font-size:11px;">grs-fdn</code>,
+        <code style="font-size:11px;">compute-efficiency</code>, and <code style="font-size:11px;">fdn-compute-efficiency</code>.
+        None use the unified <code style="background:var(--blue-l);padding:1px 6px;border-radius:4px;font-size:12px;color:var(--blue);font-weight:600;">initiative-compute-efficiency</code> board label.
+      </p>
+      <table class="ticket-table">
+        <thead>
+          <tr><th>Key</th><th>Summary</th><th>Status</th><th>Current Labels</th><th>Board Label</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a class="ticket-key" href="https://anyscale1.atlassian.net/browse/FDN-1263" target="_blank">FDN-1263</a></td>
+            <td>Global Resource Scheduler observability enhancements</td>
+            <td><span class="status-badge s-inprogress">In Progress</span></td>
+            <td><span class="badge badge-gray">compute-efficiency</span> <span class="badge badge-gray">fdn-grs</span></td>
+            <td><span class="label-status label-missing">MISSING</span></td>
+          </tr>
+          <tr>
+            <td><a class="ticket-key" href="https://anyscale1.atlassian.net/browse/FDN-2312" target="_blank">FDN-2312</a></td>
+            <td>GRS Preemption Observability - Show Preemption Logs</td>
+            <td><span class="status-badge s-submitted">Submitted</span></td>
+            <td><span class="badge badge-gray">fdn-compute-efficiency</span></td>
+            <td><span class="label-status label-missing">MISSING</span></td>
+          </tr>
+          <tr>
+            <td><a class="ticket-key" href="https://anyscale1.atlassian.net/browse/FDN-2311" target="_blank">FDN-2311</a></td>
+            <td>GRS/MRC - simplify configuration process</td>
+            <td><span class="status-badge s-inprogress">In Progress</span></td>
+            <td><span style="color:var(--red);font-size:11px;font-weight:600;">&#9888; no labels</span></td>
+            <td><span class="label-status label-missing">MISSING</span></td>
+          </tr>
+          <tr>
+            <td><a class="ticket-key" href="https://anyscale1.atlassian.net/browse/FDN-2056" target="_blank">FDN-2056</a></td>
+            <td>Remove cached requests from scheduler cache when cluster terminates</td>
+            <td><span class="status-badge s-submitted">Submitted</span></td>
+            <td><span class="badge badge-gray">fdn-compute-efficiency</span></td>
+            <td><span class="label-status label-missing">MISSING</span></td>
+          </tr>
+          <tr>
+            <td><a class="ticket-key" href="https://anyscale1.atlassian.net/browse/FDN-2385" target="_blank">FDN-2385</a></td>
+            <td>Fix GRS UI running workloads status bug</td>
+            <td><span class="status-badge s-open">Open</span></td>
+            <td><span style="color:var(--red);font-size:11px;font-weight:600;">&#9888; no labels</span></td>
+            <td><span class="label-status label-missing">MISSING</span></td>
+          </tr>
+          <tr>
+            <td><a class="ticket-key" href="https://anyscale1.atlassian.net/browse/FDN-2320" target="_blank">FDN-2320</a></td>
+            <td>Fix web terminal for GRS head node in MRC w/ private networking</td>
+            <td><span class="status-badge s-submitted">Submitted</span></td>
+            <td><span style="color:var(--red);font-size:11px;font-weight:600;">&#9888; no labels</span></td>
+            <td><span class="label-status label-missing">MISSING</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Proposed GRSv2 Hierarchy -->
+  <div class="section-title">Proposed Jira Ticket Hierarchy for GRSv2-K8s</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">&#128736; Target Structure (Epic &rarr; Task &rarr; Subtask)</div>
+      <span class="badge badge-blue">To Be Created</span>
+    </div>
+    <div class="card-body">
+      <div class="hierarchy">
+        <div class="h-row">
+          <span class="h-label-dot present"></span>
+          <span class="h-key">FDN-2719</span>
+          <span class="h-type type-initiative">Initiative</span>
+          <span class="h-name">[Initiative] Compute Efficiency</span>
+          <span class="badge badge-green" style="font-size:10px;">EXISTS</span>
+        </div>
+        <div class="h-row" style="padding-left:28px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-label-dot present"></span>
+          <span class="h-key">FDN-2720</span>
+          <span class="h-type type-epic">Epic</span>
+          <span class="h-name">MRC</span>
+          <span class="badge badge-green" style="font-size:10px;">DONE</span>
+        </div>
+        <div class="h-row" style="padding-left:28px;">
+          <span class="h-connector">&#9492;&#9472;&#9472;</span>
+          <span class="h-label-dot missing"></span>
+          <span class="h-key missing">FDN-????</span>
+          <span class="h-type type-epic">Epic</span>
+          <span class="h-name"><strong>GRS-V2-K8s</strong></span>
+          <span class="label-status label-missing">TO CREATE</span>
+          <span style="font-size:10px;color:var(--gray-400);margin-left:4px;">Owner: Pratik</span>
+        </div>
+        <!-- T1 -->
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-key missing">FDN-????</span>
+          <span class="h-type type-task">Task</span>
+          <span class="h-name">Postgres DB changes for GRS K8s</span>
+          <span class="badge badge-gray" style="font-size:10px;">Pratik &middot; 1 wk</span>
+        </div>
+        <!-- T2 -->
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-key missing">FDN-????</span>
+          <span class="h-type type-task">Task</span>
+          <span class="h-name">GRS config DTO and DAO</span>
+          <span class="badge badge-gray" style="font-size:10px;">Pratik &middot; 0.5 wk</span>
+        </div>
+        <!-- T3 -->
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-key missing">FDN-????</span>
+          <span class="h-type type-task">Task</span>
+          <span class="h-name">CLI and API changes for GRS config</span>
+          <span class="badge badge-gray" style="font-size:10px;">Dashrath &middot; 2 wk</span>
+        </div>
+        <!-- T4 + subtasks -->
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-key missing">FDN-????</span>
+          <span class="h-type type-task">Task</span>
+          <span class="h-name"><strong>ResourceManager service creation</strong></span>
+          <span class="badge badge-gray" style="font-size:10px;">Sanket &middot; 2 wk</span>
+        </div>
+        <div class="h-row" style="padding-left:100px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-key missing" style="font-size:11px;">ST</span>
+          <span style="font-size:12px;color:var(--gray-500);">Create gRPC service (1 wk)</span>
+        </div>
+        <div class="h-row" style="padding-left:100px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-key missing" style="font-size:11px;">ST</span>
+          <span style="font-size:12px;color:var(--gray-500);">Valkey integration (1 wk)</span>
+        </div>
+        <div class="h-row" style="padding-left:100px;">
+          <span class="h-connector">&#9492;&#9472;&#9472;</span>
+          <span class="h-key missing" style="font-size:11px;">ST</span>
+          <span style="font-size:12px;color:var(--gray-500);">Add API to add GRS config to Valkey (0.5 wk)</span>
+        </div>
+        <!-- T5 + subtasks -->
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-key missing">FDN-????</span>
+          <span class="h-type type-task">Task</span>
+          <span class="h-name"><strong>Fetching resource queues in SIM from ResourceManager</strong></span>
+          <span class="badge badge-gray" style="font-size:10px;">Pratik &middot; 2 wk</span>
+        </div>
+        <div class="h-row" style="padding-left:100px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-key missing" style="font-size:11px;">ST</span>
+          <span style="font-size:12px;color:var(--gray-500);">ResourceManager to fetch ResourceQueues using scheduling rules (1 wk)</span>
+        </div>
+        <div class="h-row" style="padding-left:100px;">
+          <span class="h-connector">&#9492;&#9472;&#9472;</span>
+          <span class="h-key missing" style="font-size:11px;">ST</span>
+          <span style="font-size:12px;color:var(--gray-500);">SIM - ResourceManager integration (0.5 wk)</span>
+        </div>
+        <!-- T6 -->
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9500;&#9472;&#9472;</span>
+          <span class="h-key missing">FDN-????</span>
+          <span class="h-type type-task">Task</span>
+          <span class="h-name">Provisioning instances via ResourceManager</span>
+          <span class="badge badge-gray" style="font-size:10px;">Sanket &middot; 1 wk</span>
+        </div>
+        <!-- T7 -->
+        <div class="h-row" style="padding-left:64px;">
+          <span class="h-connector">&#9492;&#9472;&#9472;</span>
+          <span class="h-key missing">FDN-????</span>
+          <span class="h-type type-task">Task</span>
+          <span class="h-name">Feature flag to enable GRS v2 for K8s</span>
+          <span class="badge badge-gray" style="font-size:10px;">Dashrath &middot; 0.5 wk</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRSv2 ACTION ITEMS -->
+  <div class="section-title">GRSv2 Action Items &mdash; Step-by-Step Plan</div>
+
+  <!-- Action 1: Create GRSv2 Epic -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">&#128680; Action 1 &mdash; Create GRS-V2-K8s Epic</div>
+      <span class="badge badge-red">URGENT</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:14px;">
+        Create Epic <strong>"GRS-V2-K8s"</strong> under the Compute Efficiency Initiative (FDN-2719).
+        Owner: <strong>Pratik Padalia</strong>. Priority: <strong>P0</strong>.
+      </p>
+      <div class="jql-box" style="margin-top:12px;">
+<span class="jql-comment"># Create GRS-V2-K8s Epic</span>
+curl -X POST \
+  -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  "https://anyscale1.atlassian.net/rest/api/3/issue" \
+  -d '{
+    "fields": {
+      "project": {"key": "FDN"},
+      "issuetype": {"name": "Epic"},
+      "summary": "GRS-V2-K8s",
+      "priority": {"name": "P0"},
+      "parent": {"key": "FDN-2719"},
+      "labels": ["initiative-compute-efficiency", "epic-grsv2"]
+    }
+  }'
+      </div>
+    </div>
+  </div>
+
+  <!-- Action 2: Create 7 Tasks -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">&#128221; Action 2 &mdash; Create 7 Tasks under GRS-V2-K8s Epic</div>
+      <span class="badge badge-red">URGENT</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:14px;">
+        Create 7 Tasks under the GRS-V2-K8s Epic. Tasks will be added to sprints.
+        All labeled <code style="font-size:11px;">initiative-compute-efficiency</code> + <code style="font-size:11px;">epic-grsv2</code>.
+      </p>
+      <table class="ticket-table">
+        <thead>
+          <tr><th>#</th><th>Task Summary</th><th>Owner</th><th>Effort</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span style="font-weight:700;color:var(--blue);">T1</span></td>
+            <td><strong>Postgres DB changes for GRS K8s</strong></td>
+            <td>Pratik</td>
+            <td>1 wk</td>
+          </tr>
+          <tr>
+            <td><span style="font-weight:700;color:var(--blue);">T2</span></td>
+            <td><strong>GRS config DTO and DAO</strong></td>
+            <td>Pratik</td>
+            <td>0.5 wk</td>
+          </tr>
+          <tr>
+            <td><span style="font-weight:700;color:var(--blue);">T3</span></td>
+            <td><strong>CLI and API changes for GRS config</strong></td>
+            <td>Dashrath</td>
+            <td>2 wk</td>
+          </tr>
+          <tr>
+            <td><span style="font-weight:700;color:var(--blue);">T4</span></td>
+            <td><strong>ResourceManager service creation</strong></td>
+            <td>Sanket</td>
+            <td>2 wk</td>
+          </tr>
+          <tr>
+            <td><span style="font-weight:700;color:var(--blue);">T5</span></td>
+            <td><strong>Fetching resource queues in SIM from ResourceManager</strong></td>
+            <td>Pratik</td>
+            <td>2 wk</td>
+          </tr>
+          <tr>
+            <td><span style="font-weight:700;color:var(--blue);">T6</span></td>
+            <td><strong>Provisioning instances via ResourceManager</strong></td>
+            <td>Sanket</td>
+            <td>1 wk</td>
+          </tr>
+          <tr>
+            <td><span style="font-weight:700;color:var(--blue);">T7</span></td>
+            <td><strong>Feature flag to enable GRS v2 for K8s</strong></td>
+            <td>Dashrath</td>
+            <td>0.5 wk</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Action 3: Create 5 Subtasks -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">&#128204; Action 3 &mdash; Create 5 Subtasks under T4 and T5</div>
+      <span class="badge badge-red">URGENT</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:14px;">
+        Create Subtasks under the two larger Tasks. All labeled <code style="font-size:11px;">initiative-compute-efficiency</code> + <code style="font-size:11px;">epic-grsv2</code>.
+      </p>
+      <table class="ticket-table">
+        <thead>
+          <tr><th>Parent Task</th><th>Subtask Summary</th><th>Effort</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span style="font-weight:600;color:var(--blue);">T4</span> ResourceManager</td>
+            <td>Create gRPC service</td>
+            <td>1 wk</td>
+          </tr>
+          <tr>
+            <td><span style="font-weight:600;color:var(--blue);">T4</span> ResourceManager</td>
+            <td>Valkey integration</td>
+            <td>1 wk</td>
+          </tr>
+          <tr>
+            <td><span style="font-weight:600;color:var(--blue);">T4</span> ResourceManager</td>
+            <td>Add API to add GRS config to Valkey</td>
+            <td>0.5 wk</td>
+          </tr>
+          <tr>
+            <td><span style="font-weight:600;color:var(--blue);">T5</span> SIM/ResourceManager</td>
+            <td>ResourceManager to fetch ResourceQueues using scheduling rules</td>
+            <td>1 wk</td>
+          </tr>
+          <tr>
+            <td><span style="font-weight:600;color:var(--blue);">T5</span> SIM/ResourceManager</td>
+            <td>SIM - ResourceManager integration</td>
+            <td>0.5 wk</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Action 5: Label Existing Tickets -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">&#127991; Action 5 &mdash; Fix Labels on Existing GRS Tickets</div>
+      <span class="badge badge-orange">HIGH</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:14px;">
+        Add the <code style="background:var(--blue-l);padding:1px 6px;border-radius:4px;font-size:12px;color:var(--blue);font-weight:600;">initiative-compute-efficiency</code>
+        label to all 6 existing GRS tickets so they appear on the FDN Board.
+      </p>
+      <div class="jql-box">
+<span class="jql-comment">#!/bin/bash</span>
+<span class="jql-comment"># Add initiative-compute-efficiency label to existing GRS tickets</span>
+
+TICKETS="FDN-1263 FDN-2312 FDN-2311 FDN-2056 FDN-2385 FDN-2320"
+
+for TICKET in $TICKETS; do
+  echo "Adding label to $TICKET..."
+  curl -s -X PUT \
+    -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
+    -H "Content-Type: application/json" \
+    "https://anyscale1.atlassian.net/rest/api/3/issue/$TICKET" \
+    -d '{"update":{"labels":[{"add":"initiative-compute-efficiency"}]}}'
+  echo " Done."
+done
+
+echo "=== All 6 existing GRS tickets labeled ==="
+      </div>
+    </div>
+  </div>
+
+  <!-- Action 6: Verify & Prevent -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">&#128269; Action 6 &mdash; Verify Board &amp; Prevent Future Gaps</div>
+      <span class="badge badge-blue">MEDIUM</span>
+    </div>
+    <div class="card-body">
+      <ol class="action-list">
+        <li class="action-item">
+          <div class="action-num priority-medium">1</div>
+          <div class="action-content">
+            <div class="action-title">Verify Board Quick Filter includes GRSv2 tickets</div>
+            <div class="action-desc">
+              Navigate to <a href="https://anyscale1.atlassian.net/jira/software/c/projects/FDN/boards/13" target="_blank">FDN Board #13</a>
+              &rarr; Quick Filters &rarr; Confirm <code>labels = "initiative-compute-efficiency"</code> filter works.
+            </div>
+            <div class="action-meta">
+              <span class="action-tag tag-manual">Manual Check</span>
+            </div>
+          </div>
+        </li>
+        <li class="action-item">
+          <div class="action-num priority-medium">2</div>
+          <div class="action-content">
+            <div class="action-title">Set up Jira Automation for auto-labeling GRSv2 children</div>
+            <div class="action-desc">
+              Rule: "When issue created with parent = GRSv2 Epic, auto-add labels
+              <code style="font-size:11px;">initiative-compute-efficiency</code> and
+              <code style="font-size:11px;">epic-grsv2</code>."
+            </div>
+          </div>
+        </li>
+        <li class="action-item">
+          <div class="action-num priority-medium">3</div>
+          <div class="action-content">
+            <div class="action-title">Add issue links for dependencies</div>
+            <div class="action-desc">
+              V2 #3 blocked by V2 #2. V2 #4 blocked by V2 #1, #2, #3.
+            </div>
+          </div>
+        </li>
+        <li class="action-item">
+          <div class="action-num priority-medium">4</div>
+          <div class="action-content">
+            <div class="action-title">Weekly label audit</div>
+            <div class="jql-box" style="margin-top:8px;">
+<span class="jql-comment"># Find GRS tickets missing the board label:</span>
+project = FDN AND summary ~ "GRS"
+  AND labels != "initiative-compute-efficiency"</div>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- OVERALL EXPECTED OUTCOME                                       -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div class="section-title">Overall Expected Outcome</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Current State</div>
+        <span class="badge badge-orange">Partial</span>
+      </div>
+      <div class="card-body">
+        <div style="text-align:center;margin-bottom:12px;">
+          <div style="font-size:48px;font-weight:900;color:var(--orange);">50%</div>
+          <div style="font-size:12px;color:var(--gray-400);">Overall Visibility</div>
+        </div>
+        <div class="progress-track"><div class="progress-fill" style="width:50%;background:var(--orange);"></div></div>
+        <ul style="list-style:none;margin-top:14px;">
+          <li style="font-size:12px;color:var(--gray-500);padding:4px 0;display:flex;align-items:center;gap:6px;">
+            <span style="color:var(--green);">&#10003;</span> MRC: 10/10 tickets visible
+          </li>
+          <li style="font-size:12px;color:var(--gray-500);padding:4px 0;display:flex;align-items:center;gap:6px;">
+            <span style="color:var(--red);">&#10007;</span> GRSv2: 0 tickets exist (13 to create: 1E + 7T + 5ST)
+          </li>
+          <li style="font-size:12px;color:var(--gray-500);padding:4px 0;display:flex;align-items:center;gap:6px;">
+            <span style="color:var(--red);">&#10007;</span> 6 existing GRS V1 tickets missing board label
+          </li>
+          <li style="font-size:12px;color:var(--gray-500);padding:4px 0;display:flex;align-items:center;gap:6px;">
+            <span style="color:var(--red);">&#10007;</span> ~9 weeks of P0 work completely untracked
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">After All Actions</div>
+        <span class="badge badge-green">Complete</span>
+      </div>
+      <div class="card-body">
+        <div style="text-align:center;margin-bottom:12px;">
+          <div style="font-size:48px;font-weight:900;color:var(--green);">100%</div>
+          <div style="font-size:12px;color:var(--gray-400);">Overall Visibility</div>
+        </div>
+        <div class="progress-track"><div class="progress-fill pf-green" style="width:100%;"></div></div>
+        <ul style="list-style:none;margin-top:14px;">
+          <li style="font-size:12px;color:var(--gray-500);padding:4px 0;display:flex;align-items:center;gap:6px;">
+            <span style="color:var(--green);">&#10003;</span> MRC: 10 tickets labeled (done)
+          </li>
+          <li style="font-size:12px;color:var(--gray-500);padding:4px 0;display:flex;align-items:center;gap:6px;">
+            <span style="color:var(--green);">&#10003;</span> GRSv2: 1 Epic + 7 Tasks + 5 Subtasks created &amp; labeled
+          </li>
+          <li style="font-size:12px;color:var(--gray-500);padding:4px 0;display:flex;align-items:center;gap:6px;">
+            <span style="color:var(--green);">&#10003;</span> 6 existing GRS tickets re-labeled for board
+          </li>
+          <li style="font-size:12px;color:var(--gray-500);padding:4px 0;display:flex;align-items:center;gap:6px;">
+            <span style="color:var(--green);">&#10003;</span> ~29 total tickets visible under Compute Efficiency (MRC 10 + GRSv2 13 + existing 6)
+          </li>
+          <li style="font-size:12px;color:var(--gray-500);padding:4px 0;display:flex;align-items:center;gap:6px;">
+            <span style="color:var(--green);">&#10003;</span> Automation prevents future gaps
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Execution Summary -->
+  <div class="section-title" style="margin-top:24px;">Execution Summary &mdash; GRSv2 Tickets to Create</div>
+  <div class="card">
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+        <div style="background:var(--red-l);border-radius:var(--radius-md);padding:16px;text-align:center;">
+          <div style="font-size:32px;font-weight:900;color:var(--red);">1</div>
+          <div style="font-size:11px;color:var(--gray-500);font-weight:600;">Epic to Create</div>
+          <div style="font-size:10px;color:var(--gray-400);margin-top:4px;">GRS-V2-K8s</div>
+        </div>
+        <div style="background:var(--orange-l);border-radius:var(--radius-md);padding:16px;text-align:center;">
+          <div style="font-size:32px;font-weight:900;color:var(--orange-d);">7 + 5</div>
+          <div style="font-size:11px;color:var(--gray-500);font-weight:600;">Tasks + Subtasks</div>
+          <div style="font-size:10px;color:var(--gray-400);margin-top:4px;">7 Tasks (sprint-ready) + 5 Subtasks</div>
+        </div>
+        <div style="background:var(--blue-l);border-radius:var(--radius-md);padding:16px;text-align:center;">
+          <div style="font-size:32px;font-weight:900;color:var(--blue);">6</div>
+          <div style="font-size:11px;color:var(--gray-500);font-weight:600;">Existing Tickets to Label</div>
+          <div style="font-size:10px;color:var(--gray-400);margin-top:4px;">Add initiative-compute-efficiency</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <strong>Compute Efficiency Board Visibility &mdash; MRC + GRSv2-K8s Action Plan</strong> &middot;
+    FDN-2719 &middot;
+    Generated Feb 18, 2026 &middot;
+    <a href="https://anyscale1.atlassian.net/jira/software/c/projects/FDN/boards/13?label=initiative-compute-efficiency" target="_blank">View Board &#8599;</a>
+  </div>
+
+</div>
+</body>
+</html>
